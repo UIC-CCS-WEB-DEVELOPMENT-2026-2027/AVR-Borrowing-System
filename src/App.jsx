@@ -1,121 +1,93 @@
 import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { AppShell } from '@/components/AppShell'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { AuthProvider } from '@/context/AuthContext'
+import { useAuth } from '@/context/useAuth'
+import { BorrowingProvider } from '@/context/BorrowingContext'
+import { HomePage } from '@/pages/HomePage'
+import { LoginPage } from '@/pages/LoginPage'
+import {
+  BorrowFormPage,
+  ConfirmationPage,
+  ScanPage,
+} from '@/pages/StudentPages'
+import {
+  HistoryPage,
+  InventoryPage,
+  NotificationsPage,
+  ReturnPage,
+  StaffDashboardPage,
+} from '@/pages/StaffPages'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+function ShellPage({ page, children }) {
+  const routerNavigate = useNavigate()
+  const navigate = (destination) => routerNavigate(`/${destination}`)
+  return (
+    <AppShell page={page} navigate={navigate}>
+      {children}
+    </AppShell>
+  )
+}
+
+function RootRedirect() {
+  const { user, isReady } = useAuth()
+  if (!isReady) {
+    return <div className="auth-loading" role="status">Restoring your secure session...</div>
+  }
+  return <Navigate to={user ? (user.role === 'student' ? '/home' : '/dashboard') : '/login'} replace />
+}
+
+function RoutedApplication() {
+  const { user } = useAuth()
+  const location = useLocation()
+  const routerNavigate = useNavigate()
+  const navigate = (destination) => routerNavigate(`/${destination}`)
+  const [lastLoanId, setLastLoanId] = useState(null)
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          user
+            ? <Navigate to={user.role === 'student' ? '/home' : '/dashboard'} replace />
+            : <LoginPage onAuthenticated={(authenticatedUser) => {
+              const requestedPath = location.state?.from
+              const fallback = authenticatedUser.role === 'student' ? '/home' : '/dashboard'
+              routerNavigate(requestedPath || fallback, { replace: true })
+            }} />
+        }
+      />
+      <Route element={<ProtectedRoute allowedRoles={['student']} />}>
+        <Route path="/home" element={<ShellPage page="home"><HomePage navigate={navigate} /></ShellPage>} />
+        <Route path="/scan" element={<ShellPage page="scan"><ScanPage navigate={navigate} /></ShellPage>} />
+        <Route path="/borrow" element={<ShellPage page="borrow"><BorrowFormPage navigate={navigate} onBorrowed={setLastLoanId} /></ShellPage>} />
+        <Route path="/confirmation" element={<ShellPage page="confirmation"><ConfirmationPage loanId={lastLoanId} navigate={navigate} /></ShellPage>} />
+        <Route path="/return" element={<ShellPage page="return"><ReturnPage /></ShellPage>} />
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={['staff', 'admin']} />}>
+        <Route path="/dashboard" element={<ShellPage page="dashboard"><StaffDashboardPage navigate={navigate} /></ShellPage>} />
+        <Route path="/inventory" element={<ShellPage page="inventory"><InventoryPage /></ShellPage>} />
+        <Route path="/notifications" element={<ShellPage page="notifications"><NotificationsPage /></ShellPage>} />
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={['student', 'staff']} />}>
+        <Route path="/history" element={<ShellPage page="history"><HistoryPage /></ShellPage>} />
+      </Route>
+      <Route path="/" element={<RootRedirect />} />
+      <Route path="*" element={<RootRedirect />} />
+    </Routes>
+  )
+}
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+function App() {
+  return (
+    <AuthProvider>
+      <BorrowingProvider>
+        <RoutedApplication />
+      </BorrowingProvider>
+    </AuthProvider>
   )
 }
 
