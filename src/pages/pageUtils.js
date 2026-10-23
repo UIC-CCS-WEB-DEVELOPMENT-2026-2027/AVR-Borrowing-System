@@ -18,11 +18,14 @@ export function formatLongDate(value) {
 }
 
 export function getLoanStatus(loan) {
+  if (loan.status === 'reserved') return 'Reserved'
+  if (loan.status !== 'checked-out') return 'Checked out'
   return new Date(loan.returnAt).getTime() < Date.now() ? 'Overdue' : 'Checked out'
 }
 
 export function getStatusVariant(status) {
   if (status === 'Overdue' || status === 'Maintenance') return 'destructive'
   if (status === 'Available' || status === 'Returned') return 'secondary'
+  if (status === 'Reserved') return 'outline'
   return 'outline'
 }

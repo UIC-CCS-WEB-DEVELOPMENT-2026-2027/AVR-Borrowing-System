@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
-  Barcode,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -15,6 +14,7 @@ import {
   ShieldCheck,
   Video,
 } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -28,6 +28,13 @@ import {
 } from '@/components/ui/select'
 import { useBorrowing } from '@/context/useBorrowing'
 import { useAuth } from '@/context/useAuth'
+import { useParams } from 'react-router-dom'
+import {
+  DESK_CLOSE_HOUR,
+  DESK_OPEN_HOUR,
+  MAX_LOAN_HOURS,
+  MIN_LEAD_MINUTES,
+} from '@/lib/borrowRules'
 import { formatLongDate } from '@/pages/pageUtils'
 
 function PageTitle({ eyebrow, title, description }) {
@@ -56,8 +63,8 @@ function StepIndicator({ current }) {
 }
 
 export function ScanPage({ navigate }) {
-  const { studentEmail, setStudentEmail } = useBorrowing()
-  const [studentId, setStudentId] = useState('')
+  const { studentEmail, studentId, setStudentId } = useBorrowing()
+  const { user } = useAuth()
   const [error, setError] = useState('')
   const canContinue = Boolean(studentEmail || studentId.trim())
 
@@ -66,7 +73,7 @@ export function ScanPage({ navigate }) {
       setError('Enter your school email or student ID to continue.')
       return
     }
-    if (studentId.trim()) setStudentEmail(studentId.trim())
+    if (studentId.trim()) setStudentId(studentId.trim())
     navigate('borrow')
   }
 
@@ -96,7 +103,7 @@ export function ScanPage({ navigate }) {
               <Button variant="outline" onClick={() => navigate('home')}><ArrowLeft size={15} /> Back</Button>
               <Button className="primary-action" onClick={continueToBorrow} disabled={!canContinue}>Continue <ArrowRight size={16} /></Button>
             </div>
-            {studentEmail && <p className="verified-email"><CheckCircle2 size={14} /> Signed in as {studentEmail}</p>}
+            {user?.email && <p className="verified-email"><CheckCircle2 size={14} /> Signed in as {user.email}</p>}
           </CardContent>
         </Card>
         <button className="text-back" onClick={() => navigate('home')}><ArrowLeft size={15} /> Back to home</button>
@@ -111,28 +118,28 @@ function toLocalDateTime(value) {
   return date.toISOString().slice(0, 16)
 }
 
-export function BorrowFormPage({ navigate, onBorrowed }) {
+export function BorrowFormPage({ navigate }) {
   const { equipment, setStudentEmail, borrowEquipment } = useBorrowing()
   const { user } = useAuth()
   const availableItems = equipment.filter((item) => item.status === 'available')
   const email = user.email
   const [equipmentId, setEquipmentId] = useState(availableItems[0]?.id ?? '')
   const [returnAt, setReturnAt] = useState(() => toLocalDateTime(Date.now() + 2 * 60 * 60 * 1000))
-  const [minimumReturnAt] = useState(() => toLocalDateTime(Date.now()))
+  const [minimumReturnAt] = useState(() => toLocalDateTime(Date.now() + MIN_LEAD_MINUTES * 60 * 1000))
+  const [maximumReturnAt] = useState(() => toLocalDateTime(Date.now() + MAX_LOAN_HOURS * 60 * 60 * 1000))
   const [room, setRoom] = useState('')
   const [error, setError] = useState('')
 
   const submit = (event) => {
     event.preventDefault()
     if (!event.currentTarget.reportValidity()) return
-    const result = borrowEquipment({ email: user.email, equipmentId, returnAt, room: room.trim() })
+    const result = borrowEquipment({ email: user.email, name: user.name, equipmentId, returnAt, room: room.trim() })
     if (result.error) {
       setError(result.error)
       return
     }
     setStudentEmail(user.email)
-    onBorrowed(result.loanId)
-    navigate('confirmation')
+    navigate(`confirmation/${result.loanId}`)
   }
 
   return (
@@ -160,8 +167,9 @@ export function BorrowFormPage({ navigate, onBorrowed }) {
               </div>
               <div className="form-field">
                 <label className="field-label" htmlFor="return-time">Expected return time <span>*</span></label>
-                <div className="input-with-icon"><CalendarDays size={16} /><Input id="return-time" type="datetime-local" required min={minimumReturnAt} value={returnAt} onChange={(event) => setReturnAt(event.target.value)} /></div>
+                <div className="input-with-icon"><CalendarDays size={16} /><Input id="return-time" type="datetime-local" required min={minimumReturnAt} max={maximumReturnAt} value={returnAt} onChange={(event) => setReturnAt(event.target.value)} /></div>
                 <span className="field-hint">Please return equipment to the AVR desk by this time.</span>
+                <span className="field-hint">Return times must be between {DESK_OPEN_HOUR % 12 || 12}:00 {DESK_OPEN_HOUR < 12 ? 'AM' : 'PM'} and {DESK_CLOSE_HOUR % 12 || 12}:00 {DESK_CLOSE_HOUR < 12 ? 'AM' : 'PM'}.</span>
               </div>
               <div className="form-field">
                 <label className="field-label" htmlFor="borrow-room">Room / event location <span>*</span></label>
@@ -193,39 +201,43 @@ export function BorrowFormPage({ navigate, onBorrowed }) {
   )
 }
 
-function QRCodeGraphic({ value }) {
-  const cells = useMemo(() => {
-    const size = 25
-    const hash = [...value].reduce((total, char) => total + char.charCodeAt(0), 0)
-    return Array.from({ length: size * size }, (_, index) => {
-      const row = Math.floor(index / size)
-      const col = index % size
-      const inFinder = (r, c, top, left) => {
-        const dr = r - top
-        const dc = c - left
-        return dr >= 0 && dr < 7 && dc >= 0 && dc < 7
-          ? dr === 0 || dr === 6 || dc === 0 || dc === 6 || (dr >= 2 && dr <= 4 && dc >= 2 && dc <= 4)
-          : null
-      }
-      const finder = inFinder(row, col, 0, 0) ?? inFinder(row, col, 0, 18) ?? inFinder(row, col, 18, 0)
-      return finder ?? ((row * 7 + col * 11 + hash + row * col) % 5 < 2)
-    })
-  }, [value])
-
-  return (
-    <svg className="qr-graphic" viewBox="0 0 25 25" role="img" aria-label="Simulated QR code for this borrowing request">
-      <rect width="25" height="25" fill="white" />
-      {cells.map((active, index) => active && <rect key={index} x={index % 25} y={Math.floor(index / 25)} width="1" height="1" fill="#14221e" />)}
-    </svg>
-  )
+function readStoredConfirmation(loanId) {
+  try {
+    const stored = window.sessionStorage.getItem(`avr-confirmation-${loanId}`)
+    if (!stored) return null
+    const confirmation = JSON.parse(stored)
+    const { loan, equipment } = confirmation ?? {}
+    if (
+      !loan ||
+      loan.id !== loanId ||
+      typeof loan.email !== 'string' ||
+      typeof loan.studentName !== 'string' ||
+      typeof loan.equipmentId !== 'string' ||
+      typeof loan.returnAt !== 'string' ||
+      !equipment ||
+      equipment.id !== loan.equipmentId ||
+      typeof equipment.name !== 'string'
+    ) {
+      throw new Error('Stored AVR confirmation is invalid.')
+    }
+    return confirmation
+  } catch (error) {
+    console.error('Unable to read the AVR confirmation from session storage.', error)
+    return null
+  }
 }
 
-export function ConfirmationPage({ loanId, navigate }) {
+export function ConfirmationPage({ navigate }) {
+  const { loanId } = useParams()
   const { activeLoans, equipment } = useBorrowing()
-  const loan = activeLoans.find((entry) => entry.id === loanId)
-  const item = equipment.find((entry) => entry.id === loan?.equipmentId)
+  const { user } = useAuth()
+  const activeLoan = activeLoans.find((entry) => entry.id === loanId)
+  const storedConfirmation = activeLoan ? null : readStoredConfirmation(loanId)
+  const loan = activeLoan ?? storedConfirmation?.loan
+  const authorized = loan && (user.role !== 'student' || loan.email === user.email)
+  const item = equipment.find((entry) => entry.id === loan?.equipmentId) ?? storedConfirmation?.equipment
 
-  if (!loan) {
+  if (!authorized) {
     return (
       <div className="page-stack">
         <PageTitle eyebrow="BORROWING REQUEST" title="No recent request found." description="Start a borrowing request to see its confirmation here." />
@@ -246,7 +258,9 @@ export function ConfirmationPage({ loanId, navigate }) {
         <div className="confirmation-summary">
           <div className="confirmation-equipment-icon"><Video size={25} /></div>
           <div className="confirmation-equipment"><span>EQUIPMENT RESERVED</span><h2>{item?.name ?? 'Equipment'}</h2><small>{item?.id} <i /> AVR Media Center</small></div>
-          <Badge className="status-badge status-active" variant="outline">Ready for pickup</Badge>
+          <Badge className={`status-badge ${loan.status === 'reserved' ? 'status-neutral' : 'status-active'}`} variant="outline">
+            {loan.status === 'reserved' ? 'Reserved: show this code at the desk' : 'Checked out'}
+          </Badge>
         </div>
         <div className="confirmation-details">
           <div><span>Borrower</span><strong>{loan.studentName}</strong><small>{loan.email}</small></div>
@@ -254,8 +268,8 @@ export function ConfirmationPage({ loanId, navigate }) {
           <div><span>Return by</span><strong>{formatLongDate(loan.returnAt)}</strong></div>
         </div>
         <div className="confirmation-code-section">
-          <div className="code-copy"><span>YOUR PICKUP CODE</span><strong>{loan.id}</strong><small>Present this code to the AVR staff member.</small><div className="code-payload"><Barcode size={14} /> {JSON.stringify({ id: loan.id, item: item?.id, email: loan.email })}</div></div>
-          <div className="qr-frame"><QRCodeGraphic value={`${loan.id}:${item?.id}:${loan.email}`} /><span>SIMULATED QR</span></div>
+          <div className="code-copy"><span>YOUR PICKUP CODE</span><strong>{loan.id}</strong><small>Present this code to the AVR staff member.</small></div>
+          <div className="qr-frame"><QRCodeSVG value={loan.id} size={180} level="M" marginSize={2} /><span>SCAN AT THE AVR DESK</span></div>
         </div>
       </Card>
       <div className="confirmation-footer-actions">

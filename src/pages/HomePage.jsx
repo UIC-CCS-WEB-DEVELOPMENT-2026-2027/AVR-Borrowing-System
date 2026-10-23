@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useBorrowing } from '@/context/useBorrowing'
+import { useAuth } from '@/context/useAuth'
 import { formatDateTime, getLoanStatus, getStatusVariant } from '@/pages/pageUtils'
 
 const actions = [
@@ -27,9 +28,13 @@ const actions = [
 
 export function HomePage({ navigate }) {
   const { equipment, activeLoans, history } = useBorrowing()
+  const { user } = useAuth()
   const availableCount = equipment.filter((item) => item.status === 'available').length
   const overdueCount = activeLoans.filter((loan) => getLoanStatus(loan) === 'Overdue').length
-  const recentLoans = activeLoans.slice(0, 3)
+  const checkedOutCount = activeLoans.filter((loan) => loan.status === 'checked-out').length
+  const reservedCount = activeLoans.filter((loan) => loan.status === 'reserved').length
+  const ownLoans = activeLoans.filter((loan) => loan.email === user.email)
+  const recentLoans = ownLoans.slice(0, 3)
 
   return (
     <div className="page-stack">
@@ -42,7 +47,7 @@ export function HomePage({ navigate }) {
             <Button className="primary-action" onClick={() => navigate('borrow')}>
               <Plus size={17} /> Start borrowing
             </Button>
-            <Button variant="outline" className="welcome-secondary" onClick={() => navigate('inventory')}>
+            <Button variant="outline" className="welcome-secondary" onClick={() => navigate('borrow')}>
               Browse equipment <ArrowRight size={16} />
             </Button>
           </div>
@@ -71,8 +76,8 @@ export function HomePage({ navigate }) {
           <CardContent className="metric-content">
             <span className="metric-icon icon-violet"><ArrowDownToLine size={18} /></span>
             <span className="metric-label">Active borrowings</span>
-            <strong>{activeLoans.length.toString().padStart(2, '0')}</strong>
-            <span className="metric-note">Currently with students</span>
+            <strong>{checkedOutCount.toString().padStart(2, '0')}</strong>
+            <span className="metric-note">{reservedCount} reserved awaiting pickup</span>
           </CardContent>
         </Card>
         <Card className="metric-card">
@@ -111,8 +116,8 @@ export function HomePage({ navigate }) {
 
       <Card className="data-card">
         <div className="data-card-heading">
-          <div><span className="eyebrow">LIVE OVERVIEW</span><h2>Currently borrowed</h2></div>
-          <Button variant="outline" size="sm" onClick={() => navigate('dashboard')}>View all <ArrowRight size={15} /></Button>
+          <div><span className="eyebrow">LIVE OVERVIEW</span><h2>Your active borrowings</h2></div>
+          <Button variant="outline" size="sm" onClick={() => navigate('return')}>View all <ArrowRight size={15} /></Button>
         </div>
         {recentLoans.length ? (
           <Table>
@@ -126,14 +131,14 @@ export function HomePage({ navigate }) {
                     <TableCell><span className="table-primary">{item?.name ?? 'Equipment'}</span><span className="table-secondary">{item?.id}</span></TableCell>
                     <TableCell><span className="borrower-cell"><span className="avatar small">{loan.studentName[0]}</span><span>{loan.studentName}</span></span></TableCell>
                     <TableCell>{formatDateTime(loan.returnAt)}</TableCell>
-                    <TableCell><Badge className={`status-badge ${status === 'Overdue' ? 'status-overdue' : 'status-active'}`} variant={getStatusVariant(status)}>{status}</Badge></TableCell>
+                    <TableCell><Badge className={`status-badge ${status === 'Overdue' ? 'status-overdue' : status === 'Reserved' ? 'status-neutral' : 'status-active'}`} variant={getStatusVariant(status)}>{status}</Badge></TableCell>
                   </TableRow>
                 )
               })}
             </TableBody>
           </Table>
         ) : (
-          <div className="empty-state"><ClipboardCheck size={25} /><strong>No equipment is currently checked out</strong><span>New borrowing requests will appear here.</span></div>
+          <div className="empty-state"><ClipboardCheck size={25} /><strong>You have no active borrowings</strong><span>Your active equipment loans will appear here.</span></div>
         )}
         <div className="data-card-footer"><Clock3 size={14} /> Updated just now <button onClick={() => navigate('history')}>See borrowing history <ArrowRight size={14} /></button></div>
       </Card>

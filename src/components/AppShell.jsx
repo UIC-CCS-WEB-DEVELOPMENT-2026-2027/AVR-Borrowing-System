@@ -30,7 +30,7 @@ const studentNavigation = [{
     { id: 'home', label: 'Home', icon: Home },
     { id: 'scan', label: 'Scan student ID', icon: QrCode },
     { id: 'borrow', label: 'Borrow equipment', icon: ArrowDownToLine },
-    { id: 'return', label: 'Return an item', icon: ArrowLeftRight },
+    { id: 'return', label: 'My borrowings', icon: ArrowLeftRight },
     { id: 'history', label: 'My borrowing history', icon: ClipboardList },
   ],
 }]
@@ -39,6 +39,8 @@ const staffNavigation = [{
   heading: 'STAFF PORTAL',
   links: [
     { id: 'dashboard', label: 'Overview', icon: Video },
+    { id: 'pickups', label: 'Pickups', icon: QrCode },
+    { id: 'returns', label: 'Returns', icon: ArrowLeftRight },
     { id: 'inventory', label: 'Inventory', icon: Boxes },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'history', label: 'Borrowing history', icon: ClipboardList },
@@ -53,8 +55,10 @@ const pageLabels = {
   confirmation: 'Request confirmed',
   notifications: 'Notifications',
   dashboard: 'Staff overview',
+  pickups: 'Pickups',
+  returns: 'Returns',
   inventory: 'Equipment inventory',
-  return: 'Return equipment',
+  return: 'My borrowings',
   history: 'Borrowing history',
 }
 
@@ -148,7 +152,7 @@ export function AppShell({ page, navigate, children }) {
           </div>
           <div className="topbar-actions">
             <Button variant="outline" className="top-search" onClick={() => navigate(isStaff ? 'inventory' : 'borrow')}>
-              <Search size={15} /><span>{isStaff ? 'Search equipment' : 'Find equipment'}</span><kbd>⌘ K</kbd>
+              <Search size={15} /><span>{isStaff ? 'Search equipment' : 'Find equipment'}</span>
             </Button>
             <Button
               variant="ghost"

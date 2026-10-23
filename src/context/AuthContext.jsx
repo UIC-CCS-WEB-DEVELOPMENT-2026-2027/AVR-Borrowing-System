@@ -3,6 +3,7 @@ import { AuthContext } from '@/context/authContextValue'
 
 const SESSION_KEY = 'avr-auth-session'
 const ACCOUNTS_KEY = 'avr-auth-accounts'
+const ALLOWED_STUDENT_EMAIL_DOMAIN = 'uic.edu.ph'
 const DEMO_STAFF = {
   email: 'staff@uic.edu.ph',
   password: 'AVRstaff2026!',
@@ -109,6 +110,9 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async ({ name, email, password }) => {
     const normalizedEmail = email.trim().toLowerCase()
+    if (normalizedEmail.split('@')[1] !== ALLOWED_STUDENT_EMAIL_DOMAIN) {
+      throw new Error('Use your @uic.edu.ph school email to create an account.')
+    }
     if (normalizedEmail === DEMO_STAFF.email) {
       throw new Error('That staff email cannot be registered as a student.')
     }

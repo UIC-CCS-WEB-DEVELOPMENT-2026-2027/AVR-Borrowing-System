@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
@@ -16,7 +15,9 @@ import {
   HistoryPage,
   InventoryPage,
   NotificationsPage,
+  PickupsPage,
   ReturnPage,
+  StaffReturnsPage,
   StaffDashboardPage,
 } from '@/pages/StaffPages'
 import './App.css'
@@ -44,7 +45,6 @@ function RoutedApplication() {
   const location = useLocation()
   const routerNavigate = useNavigate()
   const navigate = (destination) => routerNavigate(`/${destination}`)
-  const [lastLoanId, setLastLoanId] = useState(null)
 
   return (
     <Routes>
@@ -63,16 +63,21 @@ function RoutedApplication() {
       <Route element={<ProtectedRoute allowedRoles={['student']} />}>
         <Route path="/home" element={<ShellPage page="home"><HomePage navigate={navigate} /></ShellPage>} />
         <Route path="/scan" element={<ShellPage page="scan"><ScanPage navigate={navigate} /></ShellPage>} />
-        <Route path="/borrow" element={<ShellPage page="borrow"><BorrowFormPage navigate={navigate} onBorrowed={setLastLoanId} /></ShellPage>} />
-        <Route path="/confirmation" element={<ShellPage page="confirmation"><ConfirmationPage loanId={lastLoanId} navigate={navigate} /></ShellPage>} />
-        <Route path="/return" element={<ShellPage page="return"><ReturnPage /></ShellPage>} />
+        <Route path="/borrow" element={<ShellPage page="borrow"><BorrowFormPage navigate={navigate} /></ShellPage>} />
+        <Route path="/return" element={<ShellPage page="return"><ReturnPage navigate={navigate} /></ShellPage>} />
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={['student', 'staff', 'admin']} />}>
+        <Route path="/confirmation" element={<Navigate to="/home" replace />} />
+        <Route path="/confirmation/:loanId" element={<ShellPage page="confirmation"><ConfirmationPage navigate={navigate} /></ShellPage>} />
       </Route>
       <Route element={<ProtectedRoute allowedRoles={['staff', 'admin']} />}>
         <Route path="/dashboard" element={<ShellPage page="dashboard"><StaffDashboardPage navigate={navigate} /></ShellPage>} />
+        <Route path="/pickups" element={<ShellPage page="pickups"><PickupsPage /></ShellPage>} />
+        <Route path="/returns" element={<ShellPage page="returns"><StaffReturnsPage /></ShellPage>} />
         <Route path="/inventory" element={<ShellPage page="inventory"><InventoryPage /></ShellPage>} />
         <Route path="/notifications" element={<ShellPage page="notifications"><NotificationsPage /></ShellPage>} />
       </Route>
-      <Route element={<ProtectedRoute allowedRoles={['student', 'staff']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['student', 'staff', 'admin']} />}>
         <Route path="/history" element={<ShellPage page="history"><HistoryPage /></ShellPage>} />
       </Route>
       <Route path="/" element={<RootRedirect />} />
