@@ -222,3 +222,4 @@ Operational checklist: HTTPS and secure cookies; database backups and restore te
 7. Should cancelled and returned loans remain as terminal rows in `loans` (recommended for referential integrity), or does the team require hard deletion from the active-loan table?
 8. Is student ID optional and informational only, or must it be validated against a university roster?
 9. What pagination, retention, and audit-history access limits are required for the first release?
+
